@@ -67,10 +67,10 @@ where
         let mut cnt: usize = 0;
         loop {
             // Write the ID
-            self.write_bytes(0x6, &[0x54, 0x75, 0xc5, 0x2a]).await;
+            self.blocking_write_bytes(0x6, &[0x54, 0x75, 0xc5, 0x2a]);
 
             let read_buf = &mut [0, 0, 0, 0];
-            self.read_bytes(0x6, read_buf).await;
+            self.blocking_read_bytes(0x6, read_buf);
 
             cnt += 1;
             if read_buf != &[0x54, 0x75, 0xc5, 0x2a] {
@@ -138,6 +138,16 @@ where
         self.cs.set_high();
     }
 
+    fn blocking_write_bytes(&mut self, mut addr: u8, bytes: &[u8]) {
+        // Mask off the bits indicating it is a write
+        addr &= 0x3f;
+
+        self.cs.set_low();
+        self.spi.blocking_write(&[addr]).ok();
+        self.spi.blocking_write(bytes).ok();
+        self.cs.set_high();
+    }
+
     async fn read_bytes(&mut self, mut addr: u8, bytes: &mut [u8]) {
         // Mask off the bits indicating it is a read
         addr = (addr & 0x3f) | 0x40;
@@ -145,6 +155,16 @@ where
         self.cs.set_low();
         self.spi.write(&[addr]).await.ok();
         self.spi.read(bytes).await.ok();
+        self.cs.set_high();
+    }
+
+    fn blocking_read_bytes(&mut self, mut addr: u8, bytes: &mut [u8]) {
+        // Mask off the bits indicating it is a read
+        addr = (addr & 0x3f) | 0x40;
+
+        self.cs.set_low();
+        self.spi.blocking_write(&[addr]).ok();
+        self.spi.blocking_read(bytes).ok();
         self.cs.set_high();
     }
 
