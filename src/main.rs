@@ -28,18 +28,18 @@ async fn main(_spawner: Spawner) {
     let p = embassy_stm32::init(Default::default());
     info!("Hello World!");
 
-    let mut a7105 = A7105::new(p.SPI1, p.PA5, p.PA7, p.PA6, p.PB6, p.DMA2_CH3, p.DMA2_CH2);
+    let mut a7105 = A7105::new(
+        p.SPI1, p.PA5, p.PA7, p.PA6, p.PB6, p.DMA2_CH3, p.DMA2_CH2, p.PA9,
+    );
     a7105.init().await;
     info!("Initialized radio!");
+    a7105.test_read_start();
+
+    let mut counter = 0;
     loop {
-        info!("loop");
-        // led.set_high();
-        Timer::after(Duration::from_secs(2)).await;
-
-        a7105.init().await;
-
-        // info!("low");
-        // // led.set_low();
-        // Timer::after(Duration::from_millis(300)).await;
+        counter += 1;
+        info!("loop {}", counter);
+        Timer::after(Duration::from_millis(50)).await;
+        a7105.test_read().await;
     }
 }

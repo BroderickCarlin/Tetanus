@@ -1,7 +1,7 @@
 use commands::Strobe;
 use defmt::{debug, warn};
 use embassy_stm32::{
-    gpio::{Level, Output, Pin, Speed},
+    gpio::{Input, Level, Output, Pin, Pull, Speed},
     spi::{Config, Instance, MisoPin, MosiPin, RxDma, SckPin, Spi, TxDma},
     time::Hertz,
     Peripheral,
@@ -13,19 +13,21 @@ pub mod commands;
 // Magic ID for the a7105 for AFHDS2A flysky protocol
 const RADIO_ID: &[u8] = &[0x54, 0x75, 0xc5, 0x2a];
 
-pub struct A7105<'spi, 'cs, T: Instance, C: Pin, RD, TD> {
+pub struct A7105<'spi, 'cs, T: Instance, C: Pin, G: Pin, RD, TD> {
     spi: Spi<'spi, T, TD, RD>,
     cs: Output<'cs, C>,
+    gpio1: Input<'cs, G>,
 }
 
-impl<'spi, 'cs, T, C, RD, TD> A7105<'spi, 'cs, T, C, RD, TD>
+impl<'spi, 'cs, T, C, G, RD, TD> A7105<'spi, 'cs, T, C, G, RD, TD>
 where
     T: Instance,
     C: Pin,
+    G: Pin,
     RD: RxDma<T>,
     TD: TxDma<T>,
 {
-    pub fn new<Sck, Mosi, Miso, Cs, TxDma, RxDma>(
+    pub fn new<Sck, Mosi, Miso, Cs, Gp, TxDma, RxDma>(
         peripheral: T,
         sck: Sck,
         mosi: Mosi,
@@ -33,6 +35,7 @@ where
         cs: Cs,
         tx_dma: TxDma,
         rx_dma: RxDma,
+        gpio1: Gp,
     ) -> Self
     where
         Sck: Peripheral + 'spi,
@@ -42,6 +45,7 @@ where
         Miso: Peripheral + 'spi,
         <Miso as Peripheral>::P: MisoPin<T>,
         Cs: Peripheral<P = C> + 'cs,
+        Gp: Peripheral<P = G> + 'cs,
         TxDma: Peripheral<P = TD> + 'spi,
         RxDma: Peripheral<P = RD> + 'spi,
     {
@@ -51,6 +55,7 @@ where
         Self {
             spi: Spi::new(peripheral, sck, mosi, miso, tx_dma, rx_dma, spi_config),
             cs: Output::new(cs, Level::High, Speed::VeryHigh),
+            gpio1: Input::new(gpio1, Pull::None),
         }
     }
 
@@ -101,7 +106,8 @@ where
 
         // GPIO2
         debug!("Setting up GPIO 2 pin...");
-        self.blocking_write_bytes(0xc, &[0b00_0001_01]);
+        // self.blocking_write_bytes(0xc, &[0b00_0001_01]);
+        self.blocking_write_bytes(0xc, &[0b00_0000_01]);
 
         // Clock Register
         debug!("Setting up Clock");
@@ -284,6 +290,75 @@ where
         self.blocking_strobe(Strobe::Standby);
         self.register_dump();
         debug!("End of radio_init");
+    }
+
+    pub fn set_channel(&mut self, chn: u8) {
+        self.blocking_write_bytes(0x0f, &[chn]);
+    }
+
+    pub fn test_read_start(&mut self) {
+        self.set_channel(0);
+        self.blocking_strobe(Strobe::Standby);
+        self.set_channel(0);
+        self.blocking_strobe(Strobe::Rx);
+    }
+
+    pub async fn wait_gpio(&mut self) -> bool {
+        let mut cnt = 0;
+        // Wait for it to go high
+        while self.gpio1.is_low() {
+            Timer::after(Duration::from_micros(100)).await;
+            cnt += 1;
+
+            if cnt > 2000 {
+                return false;
+            }
+        }
+
+        let mut cnt = 0;
+        // Wait for it to go low
+        while self.gpio1.is_high() {
+            Timer::after(Duration::from_micros(1)).await;
+            cnt += 1;
+
+            if cnt > 2000 {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    pub async fn test_read(&mut self) {
+        debug!("Scanning channels...");
+        for channel in 0..0xa0 {
+            self.blocking_strobe(Strobe::Standby);
+            self.set_channel(channel);
+
+            for _ in 0..15 {
+                self.blocking_strobe(Strobe::FifoReadPointerReset);
+                self.blocking_strobe(Strobe::Rx);
+
+                if self.wait_gpio().await {
+                    let mode_flags = &mut [0u8];
+                    self.spi.blocking_read(mode_flags).ok();
+                    // I think flag 0x01 (bit 0) is the "read data ready" flag, active low,doc is not clear about this.
+                    // bits 5 and 6 are read error flags.
+
+                    // diag_println("modeflags=%02x endptr=%02x", (int) modeflags, (int) endptr);
+                    let errflags: u8 = (1 << 6) | (1 << 5);
+
+                    if mode_flags[0] & errflags == 0 && mode_flags[0] != 0 {
+                        debug!("c={:02x} modeflags={:02x} data=", channel, mode_flags);
+                        // Read buffer
+                        let buf = &mut [0u8; 37];
+                        self.spi.blocking_read(buf).ok();
+                        // spi_read_block(0x5, buf, sizeof(buf));
+                        debug!("packet: {:?}", buf);
+                    }
+                }
+            }
+        }
     }
 
     fn register_dump(&mut self) {
