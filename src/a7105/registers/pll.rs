@@ -2,13 +2,12 @@ use super::*;
 
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub struct Pll1 {
-    // Not sure what this actually represents - this is probably wrong
-    pub lo_channel: u8,
+    pub channel: u8,
 }
 
 impl Default for Pll1 {
     fn default() -> Self {
-        Self { lo_channel: 0 }
+        Self { channel: 0 }
     }
 }
 
@@ -22,14 +21,14 @@ impl ReadableRegister<u8> for Pll1 {}
 impl WritableRegister<u8> for Pll1 {}
 
 impl From<u8> for Pll1 {
-    fn from(lo_channel: u8) -> Self {
-        Self { lo_channel }
+    fn from(channel: u8) -> Self {
+        Self { channel }
     }
 }
 
 impl Into<u8> for Pll1 {
     fn into(self) -> u8 {
-        self.lo_channel
+        self.channel
     }
 }
 
