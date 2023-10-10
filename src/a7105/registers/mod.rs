@@ -15,6 +15,7 @@ pub use rc_osc::*;
 pub use rssi::*;
 pub use rx::*;
 pub use tx::*;
+pub use vco::*;
 
 mod adc;
 mod calibration;
@@ -33,6 +34,7 @@ mod rc_osc;
 mod rssi;
 mod rx;
 mod tx;
+mod vco;
 
 /// The generic top level trait for all register values
 pub trait Register {

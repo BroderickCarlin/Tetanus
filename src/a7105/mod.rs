@@ -3,12 +3,12 @@ use defmt::{debug, warn};
 use embassy_stm32::{
     gpio::{Input, Level, Output, Pin, Pull, Speed},
     spi::{Config, Instance, MisoPin, MosiPin, RxDma, SckPin, Spi, TxDma},
-    time::Hertz,
     Peripheral,
 };
 use embassy_time::{Duration, Timer};
 
 pub mod commands;
+pub mod registers;
 
 // Magic ID for the a7105 for AFHDS2A flysky protocol
 const RADIO_ID: &[u8] = &[0x54, 0x75, 0xc5, 0x2a];
@@ -50,7 +50,7 @@ where
         RxDma: Peripheral<P = RD> + 'spi,
     {
         let mut spi_config = Config::default();
-        spi_config.frequency = Hertz(10_000_000);
+        // spi_config.frequency = Hertz(10_000_000);
 
         Self {
             spi: Spi::new(peripheral, sck, mosi, miso, tx_dma, rx_dma, spi_config),
@@ -78,7 +78,7 @@ where
 
         // Mode Control
         debug!("Setting Mode Control");
-        self.blocking_write_bytes(0x1, &[0x42]);
+        self.blocking_write_bytes(0x1, &[0b0100_0010]);
 
         // Calibration Control
         debug!("Setting Calibration Control");
@@ -266,7 +266,7 @@ where
         self.blocking_wait_auto_clear(0x02, 0x02);
 
         let cal0 = &mut [0];
-        self.blocking_read_bytes(0x25, cal0);
+        self.blocking_read_register(0x25, cal0);
         if (cal0[0] & 0x08) != 0 {
             warn!("!!! VCO Calibration fail");
         }
@@ -277,7 +277,7 @@ where
         self.blocking_wait_auto_clear(0x02, 0x02);
 
         let cal0 = &mut [0];
-        self.blocking_read_bytes(0x25, cal0);
+        self.blocking_read_register(0x25, cal0);
         debug!("vco cal a0={:02x}", cal0[0]);
         if (cal0[0] & 0x08) != 0 {
             debug!("!!! VCO Calibration fail");
@@ -289,18 +289,20 @@ where
         debug!("Strobe standby");
         self.blocking_strobe(Strobe::Standby);
         self.register_dump();
+
+        let stored_channel = &mut [0];
+        self.blocking_read_register(0x0f, stored_channel);
+        if stored_channel[0] != 0xa0 {
+            warn!(
+                "Stored channel should have been 0xa0, was {}",
+                stored_channel[0]
+            );
+        }
         debug!("End of radio_init");
     }
 
     pub fn set_channel(&mut self, chn: u8) {
         self.blocking_write_bytes(0x0f, &[chn]);
-    }
-
-    pub fn test_read_start(&mut self) {
-        self.set_channel(0);
-        self.blocking_strobe(Strobe::Standby);
-        self.set_channel(0);
-        self.blocking_strobe(Strobe::Rx);
     }
 
     pub async fn wait_gpio(&mut self) -> bool {
@@ -329,85 +331,21 @@ where
         true
     }
 
-    pub async fn test_read(&mut self) {
-        debug!("Scanning channels...");
-        for channel in 0..0xa0 {
-            self.blocking_strobe(Strobe::Standby);
-            self.set_channel(channel);
-
-            for _ in 0..15 {
-                self.blocking_strobe(Strobe::FifoReadPointerReset);
-                self.blocking_strobe(Strobe::Rx);
-
-                if self.wait_gpio().await {
-                    let mode_flags = &mut [0u8];
-                    self.spi.blocking_read(mode_flags).ok();
-                    // I think flag 0x01 (bit 0) is the "read data ready" flag, active low,doc is not clear about this.
-                    // bits 5 and 6 are read error flags.
-
-                    // diag_println("modeflags=%02x endptr=%02x", (int) modeflags, (int) endptr);
-                    let errflags: u8 = (1 << 6) | (1 << 5);
-
-                    if mode_flags[0] & errflags == 0 && mode_flags[0] != 0 {
-                        debug!("c={:02x} modeflags={:02x} data=", channel, mode_flags);
-                        // Read buffer
-                        let buf = &mut [0u8; 37];
-                        self.spi.blocking_read(buf).ok();
-                        // spi_read_block(0x5, buf, sizeof(buf));
-                        debug!("packet: {:?}", buf);
-                    }
-                }
-            }
-        }
-    }
-
     fn register_dump(&mut self) {
         let id = &mut [0, 0, 0, 0];
-        self.blocking_read_bytes(0x06, id);
+        self.blocking_read_register(0x06, id);
         debug!("Dumped ID: {:?}", id);
     }
 
-    async fn strobe(&mut self, cmd: Strobe) {
-        let byte = match cmd {
-            Strobe::Sleep => 0b1000_0000,
-            Strobe::Idle => 0b1001_0000,
-            Strobe::Standby => 0b1010_0000,
-            Strobe::Pll => 0b1011_0000,
-            Strobe::Rx => 0b1100_0000,
-            Strobe::Tx => 0b1101_0000,
-            Strobe::FifoWritePointerReset => 0b1110_0000,
-            Strobe::FifoReadPointerReset => 0b1111_0000,
-        };
-
-        self.write_bytes(byte, &[]).await;
-    }
-
-    fn blocking_strobe(&mut self, cmd: Strobe) {
-        let byte = match cmd {
-            Strobe::Sleep => 0b1000_0000,
-            Strobe::Idle => 0b1001_0000,
-            Strobe::Standby => 0b1010_0000,
-            Strobe::Pll => 0b1011_0000,
-            Strobe::Rx => 0b1100_0000,
-            Strobe::Tx => 0b1101_0000,
-            Strobe::FifoWritePointerReset => 0b1110_0000,
-            Strobe::FifoReadPointerReset => 0b1111_0000,
-        };
-
-        self.blocking_write_bytes(byte, &[]);
-    }
-
-    async fn write_bytes(&mut self, mut addr: u8, bytes: &[u8]) {
-        // Mask off the bits indicating it is a write
-        addr &= 0x3f;
+    pub fn blocking_strobe(&mut self, cmd: Strobe) {
+        let byte: u8 = cmd.into();
 
         self.cs.set_low();
-        self.spi.write(&[addr]).await.ok();
-        self.spi.write(bytes).await.ok();
+        self.spi.blocking_write(&[byte]).ok();
         self.cs.set_high();
     }
 
-    fn blocking_write_bytes(&mut self, mut addr: u8, bytes: &[u8]) {
+    pub fn blocking_write_bytes(&mut self, mut addr: u8, bytes: &[u8]) {
         // Mask off the bits indicating it is a write
         addr &= 0x3f;
 
@@ -417,17 +355,7 @@ where
         self.cs.set_high();
     }
 
-    async fn read_bytes(&mut self, mut addr: u8, bytes: &mut [u8]) {
-        // Mask off the bits indicating it is a read
-        addr = (addr & 0x3f) | 0x40;
-
-        self.cs.set_low();
-        self.spi.write(&[addr]).await.ok();
-        self.spi.read(bytes).await.ok();
-        self.cs.set_high();
-    }
-
-    fn blocking_read_bytes(&mut self, mut addr: u8, bytes: &mut [u8]) {
+    pub fn blocking_read_register(&mut self, mut addr: u8, bytes: &mut [u8]) {
         // Mask off the bits indicating it is a read
         addr = (addr & 0x3f) | 0x40;
 
@@ -437,23 +365,38 @@ where
         self.cs.set_high();
     }
 
-    async fn wait_auto_clear(&mut self, addr: u8, bit: u8) {
+    pub fn blocking_wait_auto_clear(&mut self, addr: u8, bit: u8) {
         let byte = &mut [0];
         loop {
-            self.read_bytes(addr, byte).await;
+            self.blocking_read_register(addr, byte);
             if (byte[0] & bit) == 0 {
                 break;
             }
         }
     }
 
-    fn blocking_wait_auto_clear(&mut self, addr: u8, bit: u8) {
-        let byte = &mut [0];
-        loop {
-            self.blocking_read_bytes(addr, byte);
-            if (byte[0] & bit) == 0 {
-                break;
-            }
-        }
+    pub fn blocking_strobe_then_read(&mut self, cmd: Strobe, mut addr: u8, bytes: &mut [u8]) {
+        let byte: u8 = cmd.into();
+
+        // Mask off the bits indicating it is a read
+        addr = (addr & 0x3f) | 0x40;
+
+        self.cs.set_low();
+        self.spi.blocking_write(&[byte, addr]).ok();
+        self.spi.blocking_read(bytes).ok();
+        self.cs.set_high();
+    }
+
+    pub fn blocking_write_then_strobe(&mut self, cmd: Strobe, mut addr: u8, bytes: &[u8]) {
+        let byte: u8 = cmd.into();
+
+        // Mask off the bits indicating it is a read
+        addr &= 0x3f;
+
+        self.cs.set_low();
+        self.spi.blocking_write(&[addr]).ok();
+        self.spi.blocking_write(bytes).ok();
+        self.spi.blocking_write(&[byte]).ok();
+        self.cs.set_high();
     }
 }
