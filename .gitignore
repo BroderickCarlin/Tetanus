@@ -11,3 +11,6 @@ target/
 
 # MacOS specific files
 **/.DS_Store
+
+# VS Code
+.vscode/**
