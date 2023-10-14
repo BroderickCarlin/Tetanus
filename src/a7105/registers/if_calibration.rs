@@ -49,7 +49,7 @@ impl From<u8> for IfCalibration1Result {
 
 #[derive(PartialEq, Debug, Copy, Clone, Default)]
 pub struct IfCalibration2 {
-    pub deviation: u8
+    pub deviation: u8,
 }
 
 impl Register for IfCalibration2 {
@@ -63,7 +63,7 @@ impl ReadableRegister<u8> for IfCalibration2 {}
 impl From<u8> for IfCalibration2 {
     fn from(val: u8) -> Self {
         Self {
-            deviation: val & 0b0001_1111
+            deviation: val & 0b0001_1111,
         }
     }
 }

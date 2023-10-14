@@ -175,7 +175,7 @@ where
 
         // Code Register 1
         debug!("Setting Code Register 1");
-        self.blocking_write_bytes(0x1f, &[0x1f]);
+        self.blocking_write_bytes(0x1f, &[0b0001_1111]);
 
         // Code Register 2
         debug!("Setting Code Register 2");

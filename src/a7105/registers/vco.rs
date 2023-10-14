@@ -3,7 +3,7 @@ use super::*;
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub enum VcoCurrentCalibration {
     Automatic,
-    Manual(u8)
+    Manual(u8),
 }
 
 impl Default for VcoCurrentCalibration {
@@ -24,15 +24,15 @@ impl Into<u8> for VcoCurrentCalibration {
     fn into(self) -> u8 {
         match self {
             Self::Automatic => 0,
-            Self::Manual(val) => (val & 0b1111) | 0b1_0000
+            Self::Manual(val) => (val & 0b1111) | 0b1_0000,
         }
     }
 }
 
 #[derive(PartialEq, Debug, Copy, Clone)]
-pub struct  VcoCurrentCalibrationResult {
+pub struct VcoCurrentCalibrationResult {
     success: bool,
-    value: u8
+    value: u8,
 }
 
 impl Register for VcoCurrentCalibrationResult {
@@ -46,8 +46,8 @@ impl ReadableRegister<u8> for VcoCurrentCalibrationResult {}
 impl From<u8> for VcoCurrentCalibrationResult {
     fn from(val: u8) -> Self {
         Self {
-            success: (val & 0b1_0000) != 0, 
-            value: val & 0b1111
+            success: (val & 0b1_0000) != 0,
+            value: val & 0b1111,
         }
     }
 }
@@ -56,7 +56,7 @@ impl From<u8> for VcoCurrentCalibrationResult {
 pub enum VcoSingleBandCalibration1 {
     #[default]
     Automatic,
-    Manual(u8)
+    Manual(u8),
 }
 
 impl Register for VcoSingleBandCalibration1 {
@@ -71,7 +71,7 @@ impl Into<u8> for VcoSingleBandCalibration1 {
     fn into(self) -> u8 {
         match self {
             Self::Automatic => 0,
-            Self::Manual(val) => (val & 0b111) | 0b1000
+            Self::Manual(val) => (val & 0b111) | 0b1000,
         }
     }
 }
@@ -83,14 +83,14 @@ pub enum VcoVoltageOutput {
     /// VTL<VT<VTH
     VtMid,
     /// VTL<VTH<VT
-    VtMax
+    VtMax,
 }
 
 #[derive(PartialEq, Debug, Copy, Clone)]
-pub struct  VcoSingleBandCalibration1Result {
+pub struct VcoSingleBandCalibration1Result {
     voltage_output: VcoVoltageOutput,
     success: bool,
-    value: u8
+    value: u8,
 }
 
 impl Register for VcoSingleBandCalibration1Result {
@@ -107,16 +107,91 @@ impl From<u8> for VcoSingleBandCalibration1Result {
             voltage_output: match (val & 0b11_0000) >> 4 {
                 0b00 => VcoVoltageOutput::VtMin,
                 0b01 => VcoVoltageOutput::VtMid,
-                _ => VcoVoltageOutput::VtMax
+                _ => VcoVoltageOutput::VtMax,
             },
-            success: (val & 0b1000) != 0, 
-            value: val & 0b111
+            success: (val & 0b1000) != 0,
+            value: val & 0b111,
         }
     }
 }
 
-
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub struct VcoSingleBandCalibration2 {
-    voltage_upper_threshold: u8
+    /// VCO tuning voltage upper threshold level setting.
+    voltage_upper_threshold: TuningVoltageUpperThreshold,
+    /// VCO tuning voltage lower threshold level setting.
+    voltage_lower_threshold: TuningVoltageLowerThreshold,
+}
+
+#[derive(PartialEq, Debug, Copy, Clone)]
+pub enum TuningVoltageUpperThreshold {
+    /// 0.6V
+    V06,
+    /// 0.7V
+    V07,
+    /// 0.8V
+    V08,
+    /// 0.9V
+    V09,
+    /// 1.0V
+    V10,
+    /// 1.1V
+    V11,
+    /// 1.2V
+    V12,
+    /// 1.3V
+    V13,
+}
+
+#[derive(PartialEq, Debug, Copy, Clone)]
+pub enum TuningVoltageLowerThreshold {
+    /// 0.1V
+    V01,
+    /// 0.2V
+    V02,
+    /// 0.3V
+    V03,
+    /// 0.4V
+    V04,
+    /// 0.5V
+    V05,
+    /// 0.6V
+    V06,
+    /// 0.7V
+    V07,
+    /// 0.8V
+    V08,
+}
+
+impl Register for VcoSingleBandCalibration2 {
+    fn id() -> u8 {
+        0x26
+    }
+}
+
+impl WritableRegister<u8> for VcoSingleBandCalibration2 {}
+
+impl Into<u8> for VcoSingleBandCalibration2 {
+    fn into(self) -> u8 {
+        (match self.voltage_upper_threshold {
+            TuningVoltageUpperThreshold::V06 => 0b000,
+            TuningVoltageUpperThreshold::V07 => 0b001,
+            TuningVoltageUpperThreshold::V08 => 0b010,
+            TuningVoltageUpperThreshold::V09 => 0b011,
+            TuningVoltageUpperThreshold::V10 => 0b100,
+            TuningVoltageUpperThreshold::V11 => 0b101,
+            TuningVoltageUpperThreshold::V12 => 0b110,
+            TuningVoltageUpperThreshold::V13 => 0b111,
+        } << 3)
+            | match self.voltage_lower_threshold {
+                TuningVoltageLowerThreshold::V01 => 0b000,
+                TuningVoltageLowerThreshold::V02 => 0b001,
+                TuningVoltageLowerThreshold::V03 => 0b010,
+                TuningVoltageLowerThreshold::V04 => 0b011,
+                TuningVoltageLowerThreshold::V05 => 0b100,
+                TuningVoltageLowerThreshold::V06 => 0b101,
+                TuningVoltageLowerThreshold::V07 => 0b110,
+                TuningVoltageLowerThreshold::V08 => 0b111,
+            }
+    }
 }

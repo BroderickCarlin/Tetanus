@@ -1,4 +1,5 @@
 pub use adc::*;
+pub use battery::*;
 pub use calibration::*;
 pub use cko::*;
 pub use clock::*;
@@ -18,6 +19,7 @@ pub use tx::*;
 pub use vco::*;
 
 mod adc;
+mod battery;
 mod calibration;
 mod cko;
 mod clock;
