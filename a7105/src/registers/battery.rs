@@ -3,13 +3,13 @@ use super::*;
 #[derive(PartialEq, Debug, Copy, Clone, Default)]
 pub struct BatteryDetectConfig {
     /// VDD D voltage setting in Sleep mode
-    sleep_voltage_setting: SleepModeVoltageSetting,
+    pub sleep_voltage_setting: SleepModeVoltageSetting,
     /// VDD D and VDD A voltage setting in non-Sleep mode
-    nonsleep_voltage_setting: NonSleepModeVoltageSetting,
+    pub nonsleep_voltage_setting: NonSleepModeVoltageSetting,
     /// Battery voltage detect threshold
-    detect_threshold: DetectThreshold,
+    pub detect_threshold: DetectThreshold,
     /// Battery detect threshold enabled
-    detect_enabled: bool,
+    pub detect_enabled: bool,
 }
 
 impl Register for BatteryDetectConfig {
@@ -92,7 +92,7 @@ pub enum DetectThreshold {
 #[derive(PartialEq, Debug, Copy, Clone, Default)]
 pub struct BatteryDetectResult {
     /// Battery detection flag
-    voltage_above_threshold: bool,
+    pub voltage_above_threshold: bool,
 }
 
 impl Register for BatteryDetectResult {
@@ -108,5 +108,20 @@ impl From<u8> for BatteryDetectResult {
         Self {
             voltage_above_threshold: (val & 0b0001_0000) != 0,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::super::Register as _;
+    use super::*;
+
+    #[test]
+    fn test_battery_detect() {
+        let default: u8 = BatteryDetectConfig::default().into();
+        assert_eq!(default, 0b0000_0110);
+
+        assert_eq!(BatteryDetectConfig::id(), 0x27);
+        assert_eq!(BatteryDetectResult::id(), 0x27);
     }
 }

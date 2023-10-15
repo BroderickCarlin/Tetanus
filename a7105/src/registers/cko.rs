@@ -34,7 +34,7 @@ impl Default for CkoPinControl {
 
 impl Register for CkoPinControl {
     fn id() -> u8 {
-        0x06
+        0x0A
     }
 }
 
@@ -54,5 +54,19 @@ impl Into<u8> for CkoPinControl {
             | u8::from(self.invert_output) << 2
             | u8::from(self.output_enabled) << 1
             | u8::from(self.invert_spi_clk_input)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::super::Register as _;
+    use super::*;
+
+    #[test]
+    fn test_cko_pin_control() {
+        let default: u8 = CkoPinControl::default().into();
+        assert_eq!(default, 0b1011_1010);
+
+        assert_eq!(CkoPinControl::id(), 0xA);
     }
 }

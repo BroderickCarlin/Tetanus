@@ -60,3 +60,17 @@ impl Into<u8> for AdcControl {
             }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::super::Register as _;
+    use super::*;
+
+    #[test]
+    fn test_adc_control() {
+        let default: u8 = AdcControl::default().into();
+        assert_eq!(default, 0b1100_0011);
+
+        assert_eq!(AdcControl::id(), 0x1E);
+    }
+}

@@ -100,6 +100,7 @@ impl Default for Delay2 {
         Self {
             xtal_settling_delay: XtalSettlingDelay::Us600,
             agc_delay_settling: AgcDelaySettling::Us10,
+            // default value is 20uS, but datasheet suggets using 10uS
             rssi_measurement_delay: RssiMeasurementDelay::Us10,
         }
     }
@@ -141,5 +142,27 @@ impl Into<u8> for Delay2 {
                 RssiMeasurementDelay::Us70 => 0b110,
                 RssiMeasurementDelay::Us80 => 0b111,
             }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::super::Register as _;
+    use super::*;
+
+    #[test]
+    fn test_delay1() {
+        let default: u8 = Delay1::default().into();
+        assert_eq!(default, 0b0001_0010);
+
+        assert_eq!(Delay1::id(), 0x16);
+    }
+
+    #[test]
+    fn test_delay2() {
+        let default: u8 = Delay2::default().into();
+        assert_eq!(default, 0b0100_0000);
+
+        assert_eq!(Delay2::id(), 0x17);
     }
 }

@@ -9,6 +9,7 @@ pub enum GpioPinFunction {
     /// (TX) TX modulation enable / (RX) Carrier Detect
     TmeoOrCd,
     PreableDetectOutput,
+    Default,
     InPhaseDemodulatorInput,
     Sdo,
     Trxd,
@@ -25,6 +26,7 @@ impl Into<u8> for GpioPinFunction {
             GpioPinFunction::EoacOrFsync => 0b0000_0100,
             GpioPinFunction::TmeoOrCd => 0b0000_1000,
             GpioPinFunction::PreableDetectOutput => 0b0000_1100,
+            GpioPinFunction::Default => 0b0001_0000,
             GpioPinFunction::InPhaseDemodulatorInput => 0b0001_0100,
             GpioPinFunction::Sdo => 0b0001_1000,
             GpioPinFunction::Trxd => 0b0011_1000,
@@ -79,7 +81,7 @@ pub struct Gpio2PinControl {
 impl Default for Gpio2PinControl {
     fn default() -> Self {
         Self {
-            pin_function: GpioPinFunction::Wtr,
+            pin_function: GpioPinFunction::Default,
             invert_output: false,
             output_enabled: true,
         }
@@ -99,5 +101,27 @@ impl Into<u8> for Gpio2PinControl {
         Into::<u8>::into(self.pin_function)
             | u8::from(self.invert_output) << 1
             | u8::from(self.output_enabled)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::super::Register as _;
+    use super::*;
+
+    #[test]
+    fn test_gpio1_pin_control() {
+        let default: u8 = Gpio1PinControl::default().into();
+        assert_eq!(default, 0b1);
+
+        assert_eq!(Gpio1PinControl::id(), 0xB);
+    }
+
+    #[test]
+    fn test_gpio2_pin_control() {
+        let default: u8 = Gpio2PinControl::default().into();
+        assert_eq!(default, 0b10001);
+
+        assert_eq!(Gpio2PinControl::id(), 0xC);
     }
 }

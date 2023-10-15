@@ -47,7 +47,7 @@ impl From<u8> for IfCalibration1Result {
     }
 }
 
-#[derive(PartialEq, Debug, Copy, Clone, Default)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 pub struct IfCalibration2 {
     pub deviation: u8,
 }
@@ -65,5 +65,24 @@ impl From<u8> for IfCalibration2 {
         Self {
             deviation: val & 0b0001_1111,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::super::Register as _;
+    use super::*;
+
+    #[test]
+    fn test_if_calibration1_config() {
+        let default: u8 = IfCalibration1Config::default().into();
+        assert_eq!(default, 0b0);
+
+        assert_eq!(IfCalibration1Config::id(), 0x22);
+    }
+
+    #[test]
+    fn test_if_calibration2() {
+        assert_eq!(IfCalibration2::id(), 0x23);
     }
 }

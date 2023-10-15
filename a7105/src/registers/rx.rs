@@ -2,8 +2,8 @@ use super::*;
 
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub enum Bandwidth {
-    khz250,
-    khz500,
+    Khz250,
+    Khz500,
 }
 
 #[derive(PartialEq, Debug, Copy, Clone)]
@@ -19,8 +19,8 @@ impl Default for Rx {
         Self {
             freq_compensation_enable: false,
             data_invert: false,
-            bandwidth: Bandwidth::khz500,
-            lowside_band_select: true,
+            bandwidth: Bandwidth::Khz500,
+            lowside_band_select: false,
         }
     }
 }
@@ -35,12 +35,13 @@ impl WritableRegister<u8> for Rx {}
 
 impl Into<u8> for Rx {
     fn into(self) -> u8 {
-        0b0110_0000
+        // The datasheet lists both 0b0100_0000 and 0b0110_0000 as the defaults we should use
+        0b0100_0000
             | u8::from(self.freq_compensation_enable) << 4
             | u8::from(self.data_invert) << 3
             | match self.bandwidth {
-                Bandwidth::khz250 => 0b1,
-                Bandwidth::khz500 => 0b0,
+                Bandwidth::Khz250 => 0b0,
+                Bandwidth::Khz500 => 0b1,
             } << 1
             | u8::from(self.lowside_band_select)
     }
@@ -48,19 +49,19 @@ impl Into<u8> for Rx {
 
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub enum MixerGain {
-    db24,
-    db18,
-    db12,
-    db6,
+    Db24,
+    Db18,
+    Db12,
+    Db6,
 }
 
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub enum LnaGain {
-    db24,
-    db18,
-    db12,
-    db6,
-    db0,
+    Db24,
+    Db18,
+    Db12,
+    Db6,
+    Db0,
 }
 
 #[derive(PartialEq, Debug, Copy, Clone)]
@@ -74,8 +75,8 @@ impl Default for RxGain1 {
     fn default() -> Self {
         Self {
             manual_vga_calibration: false,
-            mixer_gain: MixerGain::db24,
-            lna_gain: LnaGain::db24,
+            mixer_gain: MixerGain::Db24,
+            lna_gain: LnaGain::Db24,
         }
     }
 }
@@ -93,17 +94,17 @@ impl Into<u8> for RxGain1 {
     fn into(self) -> u8 {
         u8::from(self.manual_vga_calibration) << 7
             | match self.mixer_gain {
-                MixerGain::db24 => 0b00,
-                MixerGain::db18 => 0b01,
-                MixerGain::db12 => 0b10,
-                MixerGain::db6 => 0b11,
+                MixerGain::Db24 => 0b00,
+                MixerGain::Db18 => 0b01,
+                MixerGain::Db12 => 0b10,
+                MixerGain::Db6 => 0b11,
             } << 3
             | match self.lna_gain {
-                LnaGain::db24 => 0b000,
-                LnaGain::db18 => 0b001,
-                LnaGain::db12 => 0b010,
-                LnaGain::db6 => 0b011,
-                LnaGain::db0 => 0b100,
+                LnaGain::Db24 => 0b000,
+                LnaGain::Db18 => 0b001,
+                LnaGain::Db12 => 0b010,
+                LnaGain::Db6 => 0b011,
+                LnaGain::Db0 => 0b100,
             }
     }
 }
@@ -113,19 +114,40 @@ impl From<u8> for RxGain1 {
         Self {
             manual_vga_calibration: (val & 0b1000_0000) != 0,
             mixer_gain: match (val >> 3) & 0b11 {
-                0b00 => MixerGain::db24,
-                0b01 => MixerGain::db18,
-                0b10 => MixerGain::db12,
-                0b11 => MixerGain::db6,
-                _ => unreachable!(),
+                0b00 => MixerGain::Db24,
+                0b01 => MixerGain::Db18,
+                0b10 => MixerGain::Db12,
+                _ => MixerGain::Db6,
             },
             lna_gain: match val & 0b111 {
-                0b000 => LnaGain::db24,
-                0b001 => LnaGain::db18,
-                0b010 => LnaGain::db12,
-                0b011 => LnaGain::db6,
-                _ => LnaGain::db0,
+                0b000 => LnaGain::Db24,
+                0b001 => LnaGain::Db18,
+                0b010 => LnaGain::Db12,
+                0b011 => LnaGain::Db6,
+                _ => LnaGain::Db0,
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::super::Register as _;
+    use super::*;
+
+    #[test]
+    fn test_rx_register() {
+        let default: u8 = Rx::default().into();
+        assert_eq!(default, 0b0100_0010);
+
+        assert_eq!(Rx::id(), 0x18);
+    }
+
+    #[test]
+    fn test_rx_gain1_register() {
+        let default: u8 = RxGain1::default().into();
+        assert_eq!(default, 0b0000_0000);
+
+        assert_eq!(RxGain1::id(), 0x19);
     }
 }

@@ -3,11 +3,11 @@ use super::*;
 #[derive(PartialEq, Debug, Copy, Clone, Default)]
 pub struct CalibrationControl {
     /// VCO Current calibration enable (Auto clear when done)
-    vco_current_calibration_enabled: bool,
+    pub vco_current_calibration_enabled: bool,
     /// VCO Bank calibration enable (Auto clear when done)
-    vco_bank_calibration_enabled: bool,
+    pub vco_bank_calibration_enabled: bool,
     /// IF Filter Bank calibration enable (Auto clear when done)
-    if_filter_bank_calibration_enabled: bool,
+    pub if_filter_bank_calibration_enabled: bool,
 }
 
 impl Register for CalibrationControl {
@@ -34,5 +34,19 @@ impl Into<u8> for CalibrationControl {
         u8::from(self.vco_current_calibration_enabled) << 2
             | u8::from(self.vco_bank_calibration_enabled) << 1
             | u8::from(self.if_filter_bank_calibration_enabled)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::super::Register as _;
+    use super::*;
+
+    #[test]
+    fn test_calibration_control() {
+        let default: u8 = CalibrationControl::default().into();
+        assert_eq!(default, 0);
+
+        assert_eq!(CalibrationControl::id(), 0x2);
     }
 }

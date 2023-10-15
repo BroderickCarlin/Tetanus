@@ -54,8 +54,7 @@ impl From<u8> for Clock {
             sys_clock_div: match (val & 0b1100) >> 2 {
                 0b00 => SystemClockDiv::Div1,
                 0b01 | 0b10 => SystemClockDiv::Div2,
-                0b11 => SystemClockDiv::Div4,
-                _ => unreachable!(),
+                _ => SystemClockDiv::Div4,
             },
         }
     }
@@ -67,5 +66,19 @@ impl Into<u8> for Clock {
             | u8::from(self.external_crystal_osc)
             | self.clock_generation_ref_cnt.min(0b1111) << 4
             | Into::<u8>::into(self.sys_clock_div) << 2
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::super::Register as _;
+    use super::*;
+
+    #[test]
+    fn test_clock() {
+        let default: u8 = Clock::default().into();
+        assert_eq!(default, 0b1111_0101);
+
+        assert_eq!(Clock::id(), 0xD);
     }
 }

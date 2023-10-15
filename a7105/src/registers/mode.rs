@@ -51,6 +51,7 @@ impl From<u8> for Mode {
 }
 
 #[derive(PartialEq, Debug, Copy, Clone, Default)]
+#[non_exhaustive]
 pub struct Reset {}
 
 impl Register for Reset {
@@ -142,7 +143,26 @@ impl Into<u8> for ModeControl {
             | u8::from(self.auto_rssi) << 6
             | u8::from(self.auto_if) << 5
             | u8::from(self.cd_filter) << 4
-            | u8::from(self.data_mode == DataMode::Direct) << 1
+            | u8::from(self.data_mode == DataMode::FIFO) << 1
             | u8::from(self.adc_measurement_enabled)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::super::Register as _;
+    use super::*;
+
+    #[test]
+    fn test_reset() {
+        assert_eq!(Reset::id(), 0x0);
+    }
+
+    #[test]
+    fn test_mode_control() {
+        let default: u8 = ModeControl::default().into();
+        assert_eq!(default, 0);
+
+        assert_eq!(ModeControl::id(), 0x1);
     }
 }

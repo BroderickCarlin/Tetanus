@@ -25,3 +25,17 @@ impl Into<u8> for DataRate {
         self.rate
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::super::Register as _;
+    use super::*;
+
+    #[test]
+    fn test_data_rate() {
+        let default: u8 = DataRate::default().into();
+        assert_eq!(default, 0);
+
+        assert_eq!(DataRate::id(), 0xE);
+    }
+}

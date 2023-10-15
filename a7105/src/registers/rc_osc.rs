@@ -34,3 +34,17 @@ impl Into<u8> for RcOsc3 {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::super::Register as _;
+    use super::*;
+
+    #[test]
+    fn test_mode_control() {
+        let default: u8 = RcOsc3::default().into();
+        assert_eq!(default, 0b101);
+
+        assert_eq!(RcOsc3::id(), 0x9);
+    }
+}

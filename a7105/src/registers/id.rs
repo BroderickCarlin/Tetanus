@@ -25,3 +25,14 @@ impl Into<u32> for IdData {
         self.id
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::super::Register as _;
+    use super::*;
+
+    #[test]
+    fn test_id() {
+        assert_eq!(IdData::id(), 0x6);
+    }
+}

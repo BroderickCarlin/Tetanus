@@ -8,12 +8,14 @@
 use embassy_executor::Spawner;
 // use embassy_time::{Duration, Timer};
 use {defmt_rtt as _, panic_probe as _}; // global logger
+                                        // use embassy_stm32::rnd;
 
 // mod radio;
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
     let p = embassy_stm32::init(Default::default());
+    // let rng = embassy_stm32::r
     // info!("Hello World!");
 
     // let mut a7105 = A7105::new(

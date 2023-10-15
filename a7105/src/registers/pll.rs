@@ -88,7 +88,7 @@ pub struct Pll3 {
 
 impl Default for Pll3 {
     fn default() -> Self {
-        Self { bip: 0x04 }
+        Self { bip: 0x4B }
     }
 }
 
@@ -152,13 +152,14 @@ pub struct Pll5 {
 
 impl Default for Pll5 {
     fn default() -> Self {
-        Self { bfp: 0x0 }
+        // Data sheet says default value is 0x03 but suggests 0x02
+        Self { bfp: 0x02 }
     }
 }
 
 impl Register for Pll5 {
     fn id() -> u8 {
-        0x12
+        0x13
     }
 }
 
@@ -174,5 +175,51 @@ impl From<u8> for Pll5 {
 impl Into<u8> for Pll5 {
     fn into(self) -> u8 {
         self.bfp
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::super::Register as _;
+    use super::*;
+
+    #[test]
+    fn test_pll1() {
+        let default: u8 = Pll1::default().into();
+        assert_eq!(default, 0);
+
+        assert_eq!(Pll1::id(), 0xF);
+    }
+
+    #[test]
+    fn test_pll2() {
+        let default: u8 = Pll2::default().into();
+        assert_eq!(default, 0b1001_1110);
+
+        assert_eq!(Pll2::id(), 0x10);
+    }
+
+    #[test]
+    fn test_pll3() {
+        let default: u8 = Pll3::default().into();
+        assert_eq!(default, 0b0100_1011);
+
+        assert_eq!(Pll3::id(), 0x11);
+    }
+
+    #[test]
+    fn test_pll4() {
+        let default: u8 = Pll4::default().into();
+        assert_eq!(default, 0);
+
+        assert_eq!(Pll4::id(), 0x12);
+    }
+
+    #[test]
+    fn test_pll5() {
+        let default: u8 = Pll5::default().into();
+        assert_eq!(default, 0b10);
+
+        assert_eq!(Pll5::id(), 0x13);
     }
 }

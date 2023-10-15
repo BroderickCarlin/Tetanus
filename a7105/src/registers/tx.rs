@@ -77,3 +77,25 @@ impl Into<u8> for Tx2 {
         self.fd.min(0b11111) | 0b0010_0000
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::super::Register as _;
+    use super::*;
+
+    #[test]
+    fn test_tx1() {
+        let default: u8 = Tx1::default().into();
+        assert_eq!(default, 0b0001_0110);
+
+        assert_eq!(Tx1::id(), 0x14);
+    }
+
+    #[test]
+    fn test_tx2() {
+        let default: u8 = Tx2::default().into();
+        assert_eq!(default, 0b0010_1011);
+
+        assert_eq!(Tx2::id(), 0x15);
+    }
+}

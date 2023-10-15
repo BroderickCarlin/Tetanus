@@ -58,3 +58,19 @@ impl Into<u8> for Fifo2 {
         (self.segment & 0b0011_1111) | (self.margin << 6)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::super::Register as _;
+    use super::*;
+
+    #[test]
+    fn test_fifo1() {
+        assert_eq!(Fifo1::id(), 0x3);
+    }
+
+    #[test]
+    fn test_fifo2() {
+        assert_eq!(Fifo2::id(), 0x4);
+    }
+}

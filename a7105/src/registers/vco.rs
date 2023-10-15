@@ -31,8 +31,8 @@ impl Into<u8> for VcoCurrentCalibration {
 
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub struct VcoCurrentCalibrationResult {
-    success: bool,
-    value: u8,
+    pub success: bool,
+    pub value: u8,
 }
 
 impl Register for VcoCurrentCalibrationResult {
@@ -88,9 +88,9 @@ pub enum VcoVoltageOutput {
 
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub struct VcoSingleBandCalibration1Result {
-    voltage_output: VcoVoltageOutput,
-    success: bool,
-    value: u8,
+    pub voltage_output: VcoVoltageOutput,
+    pub success: bool,
+    pub value: u8,
 }
 
 impl Register for VcoSingleBandCalibration1Result {
@@ -115,15 +115,15 @@ impl From<u8> for VcoSingleBandCalibration1Result {
     }
 }
 
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone, Default)]
 pub struct VcoSingleBandCalibration2 {
     /// VCO tuning voltage upper threshold level setting.
-    voltage_upper_threshold: TuningVoltageUpperThreshold,
+    pub voltage_upper_threshold: TuningVoltageUpperThreshold,
     /// VCO tuning voltage lower threshold level setting.
-    voltage_lower_threshold: TuningVoltageLowerThreshold,
+    pub voltage_lower_threshold: TuningVoltageLowerThreshold,
 }
 
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone, Default)]
 pub enum TuningVoltageUpperThreshold {
     /// 0.6V
     V06,
@@ -140,10 +140,11 @@ pub enum TuningVoltageUpperThreshold {
     /// 1.2V
     V12,
     /// 1.3V
+    #[default]
     V13,
 }
 
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone, Default)]
 pub enum TuningVoltageLowerThreshold {
     /// 0.1V
     V01,
@@ -152,6 +153,7 @@ pub enum TuningVoltageLowerThreshold {
     /// 0.3V
     V03,
     /// 0.4V
+    #[default]
     V04,
     /// 0.5V
     V05,
@@ -193,5 +195,36 @@ impl Into<u8> for VcoSingleBandCalibration2 {
                 TuningVoltageLowerThreshold::V07 => 0b110,
                 TuningVoltageLowerThreshold::V08 => 0b111,
             }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::super::Register as _;
+    use super::*;
+
+    #[test]
+    fn test_vco_current() {
+        let default: u8 = VcoCurrentCalibration::default().into();
+        assert_eq!(default, 0b0001_0011);
+
+        assert_eq!(VcoCurrentCalibration::id(), 0x24);
+    }
+
+    #[test]
+    fn test_vco_single_band1() {
+        let default: u8 = VcoSingleBandCalibration1::default().into();
+        assert_eq!(default, 0);
+
+        assert_eq!(VcoSingleBandCalibration1::id(), 0x25);
+        assert_eq!(VcoSingleBandCalibration1Result::id(), 0x25);
+    }
+
+    #[test]
+    fn test_vco_single_band2() {
+        let default: u8 = VcoSingleBandCalibration2::default().into();
+        assert_eq!(default, 0b0011_1011);
+
+        assert_eq!(VcoSingleBandCalibration2::id(), 0x26);
     }
 }
