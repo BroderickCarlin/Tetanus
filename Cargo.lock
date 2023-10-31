@@ -13,6 +13,11 @@ dependencies = [
 [[package]]
 name = "afhds2"
 version = "0.1.0"
+dependencies = [
+ "a7105",
+ "embassy-stm32",
+ "embassy-time",
+]
 
 [[package]]
 name = "atomic-polyfill"

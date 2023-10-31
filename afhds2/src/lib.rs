@@ -1,14 +1,27 @@
 #![no_std]
 
-// use embassy_stm32::{
-//     gpio::{Input, Level, Output, Pin, Pull, Speed},
-//     spi::{Config, Instance, MisoPin, MosiPin, RxDma, SckPin, Spi, TxDma},
-//     Peripheral,
-// };
-// use embassy_time::{Duration, Timer};
+use embassy_stm32::{
+    gpio::{Input, Level, Output, Pin, Pull, Speed},
+    spi::{Config, Instance, MisoPin, MosiPin, RxDma, SckPin, Spi, TxDma},
+    Peripheral,
+};
+use embassy_time::{Duration, Timer};
+use a7105::A7105;
 
-// Magic ID for the a7105 for AFHDS2A flysky protocol
-// const RADIO_ID: &[u8] = &[0x54, 0x75, 0xc5, 0x2a];
+/// Magic ID for the a7105 for AFHDS2A flysky protocol
+pub const RADIO_ID: u32 = 0x5475C52A;
+
+pub struct Afhds2<SPI> {
+    radio: A7105<SPI>
+}
+
+impl<SPI> Afhds2<SPI> {
+    pub const fn init(spi: SPI) -> Self {
+        Self {
+            radio: A7105::new(spi)
+        }
+    }
+}
 
 // pub struct A7105<'spi, 'cs, T: Instance, C: Pin, G: Pin, RD, TD> {
 //     spi: Spi<'spi, T, TD, RD>,
