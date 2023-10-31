@@ -13,7 +13,7 @@ const PACKET_ID_BIND2: u8 = 0xBC;
 const PACKET_ID_STICKS: u8 = 0x58;
 const PACKET_ID_FAILSAFE: u8 = 0x56;
 
-#[derive(Debug, Format, Clone, PartialEq)]
+#[derive(Format, Debug, Format, Clone, PartialEq)]
 pub enum TransmitterPacket {
     Sticks(SticksPacket),
     Bind(BindPacket),
@@ -25,7 +25,7 @@ impl TransmitterPacket {
     }
 }
 
-#[derive(Debug, Format, Clone, PartialEq)]
+#[derive(Format, Debug, Format, Clone, PartialEq)]
 pub struct SticksPacket {
     transmitter_id: u32,
     receiver_id: u32,
@@ -54,7 +54,7 @@ impl SticksPacket {
     }
 }
 
-#[derive(Debug, Format, Clone, PartialEq)]
+#[derive(Format, Debug, Format, Clone, PartialEq)]
 pub struct BindPacket {
     transmitter_id: u32,
     receiver_id: u32,

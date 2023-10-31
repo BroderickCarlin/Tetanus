@@ -1,5 +1,5 @@
 [workspace]
-members = ["a7105", "robot", "afhds2"]
+members = ["robot", "afhds2"]
 default-members = ["robot"]
 resolver = "2"
 

@@ -3,13 +3,6 @@
 version = 3
 
 [[package]]
-name = "a7105"
-version = "0.1.0"
-dependencies = [
- "defmt",
-]
-
-[[package]]
 name = "afhds2"
 version = "0.1.0"
 
