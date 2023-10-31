@@ -5,7 +5,7 @@ edition = "2021"
 license = "Apache-2.0"
 
 [dependencies]
-# a7105 = { version = "0.1", path = "../a7105"}
+a7105 = { path = "../../a7105"}
 # Change chip name, if necessary.
 embassy-stm32 = { git = "https://github.com/embassy-rs/embassy", features = ["nightly", "unstable-traits", "defmt", "stm32f411re", "unstable-pac", "memory-x", "time-driver-any", "exti", "embedded-sdmmc", "chrono"]  }
 embassy-sync = { git = "https://github.com/embassy-rs/embassy", features = ["defmt"] }

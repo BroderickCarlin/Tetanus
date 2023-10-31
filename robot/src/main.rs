@@ -14,7 +14,7 @@ use {defmt_rtt as _, panic_probe as _}; // global logger
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
-    let p = embassy_stm32::init(Default::default());
+    let _p = embassy_stm32::init(Default::default());
     // let rng = embassy_stm32::r
     // info!("Hello World!");
 
