@@ -4,6 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-a7105 = { path = "../../a7105"}
-embassy-stm32 = { git = "https://github.com/embassy-rs/embassy", features = ["nightly", "unstable-traits", "defmt", "stm32f411re", "unstable-pac", "memory-x", "time-driver-any", "exti", "embedded-sdmmc", "chrono"]  }
-embassy-time = { git = "https://github.com/embassy-rs/embassy", features = ["defmt", "defmt-timestamp-uptime", "unstable-traits", "tick-hz-32_768"] }
+a7105 = { path = "../../a7105", default-features = false }
+embedded-hal = { version = "1.0.0-rc.1", optional = true }
+embedded-hal-async = { version = "1.0.0-rc.1", optional = true }
+
+[features]
+default = ["blocking"]
+async = ["a7105/async", "embedded-hal-async"] 
+blocking = ["a7105/blocking", "embedded-hal"]

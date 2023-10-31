@@ -1,33 +1,305 @@
 #![no_std]
 
-use embassy_stm32::{
-    gpio::{Input, Level, Output, Pin, Pull, Speed},
-    spi::{Config, Instance, MisoPin, MosiPin, RxDma, SckPin, Spi, TxDma},
-    Peripheral,
-};
-use embassy_time::{Duration, Timer};
-use a7105::A7105;
+use a7105::{commands::Command, registers::*, A7105};
 
 /// Magic ID for the a7105 for AFHDS2A flysky protocol
 pub const RADIO_ID: u32 = 0x5475C52A;
 
-pub struct Afhds2<SPI> {
-    radio: A7105<SPI>
+pub struct Afhds2<SPI, P> {
+    radio: A7105<SPI>,
+    gpio: P,
 }
 
-impl<SPI> Afhds2<SPI> {
-    pub const fn init(spi: SPI) -> Self {
+impl<SPI, P> Afhds2<SPI, P> {
+    /// Create a new instance of a [`Afhds2`]
+    ///
+    /// This method does not initialize the underlying radio hardware.
+    pub const fn new(spi: SPI, gpio: P) -> Self {
         Self {
-            radio: A7105::new(spi)
+            radio: A7105::new(spi),
+            gpio,
         }
+    }
+
+    /// Createa a new instance of a [`Afhds2`] from the provided [`A7105`]
+    ///
+    /// This method is useful for cases where you may want to initialize the underlying hardware
+    /// manually, for example to configure the PLL, crystal, or GPIO pins.
+    pub const fn from_radio(radio: A7105<SPI>, gpio: P) -> Self {
+        Self { radio, gpio }
     }
 }
 
-// pub struct A7105<'spi, 'cs, T: Instance, C: Pin, G: Pin, RD, TD> {
-//     spi: Spi<'spi, T, TD, RD>,
-//     cs: Output<'cs, C>,
-//     gpio1: Input<'cs, G>,
-// }
+#[cfg(feature = "blocking")]
+impl<SPI, P> Afhds2<SPI, P>
+where
+    SPI: embedded_hal::spi::SpiDevice,
+    P: embedded_hal::digital::InputPin,
+{
+    /// A function to configure the underlying radio hardware
+    ///
+    /// This method will reset the radio to its defaults, with the following modifications:
+    ///
+    /// | Config   | Value   | Description |
+    /// |----------|---------|-------------|
+    /// | GPIO1    | MISO    | Configures the GPIO1 pin to act as the MISO pin |
+    /// | Radio ID | [`RADIO_ID`] | Configures the Radio ID |
+    /// | Auto RSSI | True | Automatically perform RSSI measurement when entering RX mode
+    /// | Data mode | FIFO | Use a FIFO for interfacing with the RX/TX data
+    pub fn configure_radio<D>(&mut self, mut delay: D) -> Result<(), SPI::Error>
+    where
+        D: embedded_hal::delay::DelayUs,
+    {
+        // Start by resetting the radio
+        self.radio.command(Command::Reset)?;
+
+        // Give it time to actually perform the reset before continuing
+        delay.delay_ms(50);
+
+        // Configure GPIO1 as our MISO pin
+        self.radio.write_reg(Gpio1PinControl {
+            pin_function: GpioPinFunction::Sdo,
+            output_enabled: true,
+            ..Default::default()
+        })?;
+
+        // Set the radio ID
+        self.radio.write_reg(IdData { id: RADIO_ID })?;
+
+        // Mode Control
+        self.radio.write_reg(ModeControl {
+            auto_rssi: true,
+            data_mode: DataMode::FIFO,
+            ..Default::default()
+        })?;
+
+        // FIFO Reg. 1
+        self.radio.write_reg(Fifo1 { end_pointer: 0x25 })?;
+
+        // FIFO Reg. 2
+        self.radio.write_reg(Fifo2 {
+            margin: 0,
+            segment: 0,
+        })?;
+
+        //     // GPIO2
+        //     debug!("Setting up GPIO 2 pin...");
+        //     // self.blocking_write_bytes(0xc, &[0b00_0001_01]);
+        //     self.blocking_write_bytes(0xc, &[0b00_0000_01]);
+
+        //     // RC OSC Register 1
+        //     debug!("Setting RC OSC Register 1");
+        //     self.blocking_write_bytes(0x7, &[0x00]);
+
+        //     // RC OSC Register 2
+        //     debug!("Setting RC OSC Register 2");
+        //     self.blocking_write_bytes(0x8, &[0x00]);
+
+        //     // Data Rate
+        //     debug!("Setting up Data Rate");
+        //     self.blocking_write_bytes(0xe, &[0x00]);
+
+        // RC OSC register 3
+        self.radio.write_reg(RcOsc3 {
+            clock_select: ClockSelect::FSyncDiv8,
+        })?;
+
+        // Clock Register
+        self.radio.write_reg(Clock {
+            external_crystal_osc: true,
+            clock_generation_ref_cnt: 0,
+            ..Default::default()
+        })?;
+
+        // PLL Register 1
+        self.radio.write_reg(Pll1 { channel: 0x50 })?;
+
+        // PLL Register 5
+        self.radio.write_reg(Pll5 { bfp: 2 })?;
+
+        // PLL Register 2
+        //     debug!("Setting PLL Register 2");
+        //     self.blocking_write_bytes(0x10, &[0x9e]);
+
+        //     // PLL Register 3
+        //     debug!("Setting PLL Register 3");
+        //     self.blocking_write_bytes(0x11, &[0x4b]);
+
+        //     // PLL Register 4
+        //     debug!("Setting PLL Register 4");
+        //     self.blocking_write_bytes(0x12, &[0x00]);
+
+        //     // TX Register 1
+        //     debug!("Setting TX Register 1");
+        //     self.blocking_write_bytes(0x14, &[0x16]);
+
+        // TODO: might have to set this?
+        //     // TX Register 2
+        //     debug!("Setting TX Register 2");
+        //     self.blocking_write_bytes(0x15, &[0x2b]);
+
+        //     // Delay Register 1
+        //     debug!("Setting Delay Register 1");
+        //     self.blocking_write_bytes(0x16, &[0x12]);
+
+        // Delay Register 2
+        self.radio.write_reg(Delay2 {
+            xtal_settling_delay: XtalSettlingDelay::Us200,
+            agc_delay_settling: AgcDelaySettling::Us10,
+            rssi_measurement_delay: RssiMeasurementDelay::Us10,
+        })?;
+
+        //     // Rx Register
+        //     debug!("Setting Rx Register");
+        //     self.blocking_write_bytes(0x18, &[0x62]);
+
+        //     // Rx Gain Register 1
+        //     debug!("Setting Rx Gain Register");
+        //     self.blocking_write_bytes(0x19, &[0x80]);
+
+        //     // Rx Gain Register 4
+        //     debug!("Setting Rx Gain Register");
+        //     self.blocking_write_bytes(0x1c, &[0x2a]);
+
+        //     // RSSI Threshold
+        //     debug!("Setting RSSI Threshold Register");
+        //     self.blocking_write_bytes(0x1d, &[0x32]);
+
+        //     // ADC Control
+        //     debug!("Setting ADC Control Register");
+        //     self.blocking_write_bytes(0x1e, &[0xc3]);
+
+        //     // Code Register 1
+        //     debug!("Setting Code Register 1");
+        //     self.blocking_write_bytes(0x1f, &[0b0001_1111]);
+
+        //     // Code Register 2
+        //     debug!("Setting Code Register 2");
+        //     self.blocking_write_bytes(0x20, &[0x13]);
+
+        //     // Code Register 3
+        //     debug!("Setting Code Register 3");
+        //     self.blocking_write_bytes(0x21, &[0xc3]);
+
+        //     // IF Calibration Register 1
+        //     debug!("Setting IF Calibration Register 1");
+        //     self.blocking_write_bytes(0x22, &[0x00]);
+
+        //     // VCO current Calibration Register
+        //     debug!("Setting VCO current Calibration Register");
+        //     self.blocking_write_bytes(0x24, &[0x00]);
+
+        //     // VCO Single band Calibration Register 1
+        //     debug!("Setting VCO Single band Calibration Register 1");
+        //     self.blocking_write_bytes(0x25, &[0x00]);
+
+        //     // VCO Single band Calibration Register 2
+        //     debug!("Setting VCO Single band Calibration Register 2");
+        //     self.blocking_write_bytes(0x26, &[0x3b]);
+
+        //     // Battery detect Register
+        //     debug!("Setting Battery detect Register");
+        //     self.blocking_write_bytes(0x27, &[0x00]);
+
+        //     // TX Test Register
+        //     debug!("Setting TX Test Register");
+        //     self.blocking_write_bytes(0x28, &[0x17]);
+
+        //     // Rx DEM test Register 1
+        //     debug!("Setting Rx DEM test Register 1");
+        //     self.blocking_write_bytes(0x29, &[0x47]);
+
+        //     // Rx DEM test Register 2
+        //     debug!("Setting Rx DEM test Register 2");
+        //     self.blocking_write_bytes(0x2a, &[0x80]);
+
+        //     // Charge Pump
+        //     debug!("Setting Charge Pump Current Register");
+        //     self.blocking_write_bytes(0x2b, &[0x03]);
+
+        //     // Crystal Test
+        //     debug!("Setting Crystal Test Register");
+        //     self.blocking_write_bytes(0x2c, &[0x01]);
+
+        //     // PLL Test
+        //     debug!("Setting PLL Test Register");
+        //     self.blocking_write_bytes(0x2d, &[0x45]);
+
+        //     // VCO Test 1
+        //     debug!("Setting VCO Test Register 1");
+        //     self.blocking_write_bytes(0x2e, &[0x18]);
+
+        //     // VCO Test 2
+        //     debug!("Setting VCO Test Register 2");
+        //     self.blocking_write_bytes(0x2f, &[0x00]);
+
+        //     // IFAT Register
+        //     debug!("Setting IFAT Register");
+        //     self.blocking_write_bytes(0x30, &[0x01]);
+
+        //     // RScale Register
+        //     debug!("Setting RScale Register");
+        //     self.blocking_write_bytes(0x31, &[0x0f]);
+
+        //     // Set to Standby mode
+        //     self.blocking_strobe(Strobe::Standby);
+
+        //     // Calibrate IF filter bank
+        //     debug!("IF filter bank calibration...");
+        //     self.blocking_write_bytes(0x02, &[0x01]);
+        //     self.blocking_wait_auto_clear(0x02, 0x01);
+
+        //     debug!("VCO Current Calibration");
+        //     //Recomended calibration from A7105 Datasheet
+        //     self.blocking_write_bytes(0x24, &[0x13]);
+
+        //     debug!("VCO bank calibration");
+        //     self.blocking_write_bytes(0x26, &[0x3b]);
+
+        //     debug!("VCO Bank Calibrate channel 0");
+        //     self.blocking_write_bytes(0x0f, &[0]); // set channel
+        //     self.blocking_write_bytes(0x02, &[0x02]);
+        //     self.blocking_wait_auto_clear(0x02, 0x02);
+
+        //     let cal0 = &mut [0];
+        //     self.blocking_read_register(0x25, cal0);
+        //     if (cal0[0] & 0x08) != 0 {
+        //         warn!("!!! VCO Calibration fail");
+        //     }
+
+        //     debug!("VCO Bank Calibrate channel 0xa0");
+        //     self.blocking_write_bytes(0x0f, &[0xa0]); // set channel
+        //     self.blocking_write_bytes(0x02, &[0x02]);
+        //     self.blocking_wait_auto_clear(0x02, 0x02);
+
+        //     let cal0 = &mut [0];
+        //     self.blocking_read_register(0x25, cal0);
+        //     debug!("vco cal a0={:02x}", cal0[0]);
+        //     if (cal0[0] & 0x08) != 0 {
+        //         debug!("!!! VCO Calibration fail");
+        //     }
+
+        //     debug!("Reset VCO band calibration");
+        //     self.blocking_write_bytes(0x25, &[0x08]);
+
+        //     debug!("Strobe standby");
+        //     self.blocking_strobe(Strobe::Standby);
+        //     self.register_dump();
+
+        //     let stored_channel = &mut [0];
+        //     self.blocking_read_register(0x0f, stored_channel);
+        //     if stored_channel[0] != 0xa0 {
+        //         warn!(
+        //             "Stored channel should have been 0xa0, was {}",
+        //             stored_channel[0]
+        //         );
+        //     }
+        //     debug!("End of radio_init");
+        // }
+
+        Ok(())
+    }
+}
 
 // impl<'spi, 'cs, T, C, G, RD, TD> A7105<'spi, 'cs, T, C, G, RD, TD>
 // where
