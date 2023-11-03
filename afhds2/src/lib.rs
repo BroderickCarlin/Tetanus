@@ -149,45 +149,55 @@ where
             rssi_measurement_delay: RssiMeasurementDelay::Us10,
         })?;
 
-        //     // Rx Register
-        //     debug!("Setting Rx Register");
-        //     self.blocking_write_bytes(0x18, &[0x62]);
+        // Rx Register
+        self.radio.write_reg(Rx {
+            freq_compensation_enable: true,
+            ..Default::default()
+        })?;
 
-        //     // Rx Gain Register 1
-        //     debug!("Setting Rx Gain Register");
-        //     self.blocking_write_bytes(0x19, &[0x80]);
+        // Rx Gain Register 1
+        self.radio.write_reg(RxGain1 {
+            manual_vga_calibration: true,
+            ..Default::default()
+        })?;
 
         //     // Rx Gain Register 4
         //     debug!("Setting Rx Gain Register");
         //     self.blocking_write_bytes(0x1c, &[0x2a]);
 
-        //     // RSSI Threshold
-        //     debug!("Setting RSSI Threshold Register");
-        //     self.blocking_write_bytes(0x1d, &[0x32]);
+        // RSSI Threshold
+        self.radio
+            .write_reg(RssiCarrierDetectThreshold { threshold: 0x32 })?;
 
-        //     // ADC Control
-        //     debug!("Setting ADC Control Register");
-        //     self.blocking_write_bytes(0x1e, &[0xc3]);
+        // Code Register 1
+        self.radio.write_reg(Code1 {
+            fec_enabled: true,
+            crc_enabled: true,
+            id_length: IdLength::Four,
+            preable_length: PreambleLength::Four,
+            ..Default::default()
+        })?;
 
-        //     // Code Register 1
-        //     debug!("Setting Code Register 1");
-        //     self.blocking_write_bytes(0x1f, &[0b0001_1111]);
+        // Code Register 2
+        self.radio.write_reg(Code2 {
+            demodulator_dc_estimation_average_mode: 1,
+            id_error_code_tolerance: IdErrorCodeTolerance::Bits0,
+            preamble_pattern_detection_length: PreabmelPatternDetectionLength::Bits16,
+            ..Default::default()
+        })?;
 
-        //     // Code Register 2
-        //     debug!("Setting Code Register 2");
-        //     self.blocking_write_bytes(0x20, &[0x13]);
-
-        //     // Code Register 3
-        //     debug!("Setting Code Register 3");
-        //     self.blocking_write_bytes(0x21, &[0xc3]);
+        // Code Register 3
+        // Why do we set the encryption key?!
+        self.radio.write_reg(Code3 {
+            encryption_key: 0b1100_0011,
+        })?;
 
         //     // IF Calibration Register 1
         //     debug!("Setting IF Calibration Register 1");
         //     self.blocking_write_bytes(0x22, &[0x00]);
 
-        //     // VCO current Calibration Register
-        //     debug!("Setting VCO current Calibration Register");
-        //     self.blocking_write_bytes(0x24, &[0x00]);
+        // VCO current Calibration Register
+        self.radio.write_reg(VcoCurrentCalibration::Automatic)?;
 
         //     // VCO Single band Calibration Register 1
         //     debug!("Setting VCO Single band Calibration Register 1");
@@ -200,6 +210,8 @@ where
         //     // Battery detect Register
         //     debug!("Setting Battery detect Register");
         //     self.blocking_write_bytes(0x27, &[0x00]);
+
+        // BRODERICK: need to implement
 
         //     // TX Test Register
         //     debug!("Setting TX Test Register");
